@@ -9,4 +9,4 @@
    URL ini memang publik (bukan rahasia). Token WhatsApp, kata sandi,
    ID spreadsheet, dan rahasia lain tetap aman di Script Properties GAS.
    ============================================================ */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyed7Nj7Z8zXgap1qLl4rafUDfpvcoTVsTLxti5MgAWw3bO-X9OeK5ErFuBtxRibTTWDg/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby8LVbWKyv71LzPTgLwzA_y30QnHi2YlU2Ju5bGen_CykIY0xb3ZL71bwYpcdrklE-xZw/exec';

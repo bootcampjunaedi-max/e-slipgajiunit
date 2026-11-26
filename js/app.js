@@ -736,7 +736,7 @@ function downloadTemplate() {
   const rows = App.d.pegawai.filter(p => p.Status === 'Aktif').sort((a, b) => a.Unit.localeCompare(b.Unit) || a.Nama.localeCompare(b.Nama)).map(p => [String(p.NRP), p.Nama, p.Unit, p.Email, p.Jabatan].concat(pen.map(() => ''), pot.map(() => ''), ['']));
   const ws = XLSX.utils.aoa_to_sheet([head].concat(rows));
   ws['!cols'] = head.map((h, i) => ({ wch: i === 1 ? 32 : i === 3 ? 30 : Math.max(12, h.length + 2) }));
-  // Rumus Excel: subtotal (Gaji Kotor) = komponen di kirinya; THP = penghasilan (tanpa subtotal) − potongan
+  // v4.1: kolom Gaji Kotor DIISI SENDIRI sesuai daftar gaji (tanpa rumus). THP = Gaji Kotor + komponen sesudahnya − potongan
   const L = c => XLSX.utils.encode_col(c);
   const penIdx = pen.map((h, i) => ({ h: h, c: ID_COLS + i, sub: subL.indexOf(h.toLowerCase()) >= 0 }));
   const potCols = pot.map((h, i) => ID_COLS + pen.length + i);
@@ -744,15 +744,15 @@ function downloadTemplate() {
   for (let r = 1; r <= rows.length; r++) {
     const n = r + 1;
     const c0 = ws[XLSX.utils.encode_cell({ r: r, c: 0 })]; if (c0) { c0.t = 's'; c0.z = '@'; }
-    penIdx.forEach(x => { if (!x.sub) return; const src = penIdx.filter(y => !y.sub && y.c < x.c).map(y => L(y.c) + n); if (src.length) ws[XLSX.utils.encode_cell({ r: r, c: x.c })] = { t: 'n', f: 'SUM(' + src.join(',') + ')' }; });
-    const plus = penIdx.filter(y => !y.sub).map(y => L(y.c) + n), minus = potCols.map(c => L(c) + n);
+    const sub1 = penIdx.find(y => y.sub);
+    const plus = (sub1 ? [sub1].concat(penIdx.filter(y => !y.sub && y.c > sub1.c)) : penIdx.filter(y => !y.sub)).map(y => L(y.c) + n), minus = potCols.map(c => L(c) + n);
     ws[XLSX.utils.encode_cell({ r: r, c: thpCol })] = { t: 'n', f: 'SUM(' + plus.join(',') + ')' + (minus.length ? '-SUM(' + minus.join(',') + ')' : '') };
   }
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Rekap');
   const subNames = penIdx.filter(x => x.sub).map(x => x.h);
   const info = XLSX.utils.aoa_to_sheet([['PETUNJUK TEMPLAT REKAP GAJI'], ['1. Jangan ubah nama kolom. NRP diperlakukan sebagai teks (nol di depan aman).'], ['2. Isi nominal tanpa titik/Rp, atau format angka Excel. Komponen yang tidak ada boleh dikosongkan (tampil "-" di slip).'],
     ['3. Komponen penghasilan: ' + pen.join(', ') + '.'], ['4. Komponen potongan: ' + (pot.join(', ') || '-') + '.'],
-    [subNames.length ? '5. Kolom ' + subNames.join(', ') + ' terisi rumus otomatis (jumlah komponen di sebelah kirinya) dan TIDAK dijumlahkan lagi. Total penghasilan = ' + penIdx.filter(x => !x.sub && x.c > (penIdx.find(y => y.sub) || { c: 1e9 }).c).map(x => x.h).concat(subNames).reverse().join(' + ') + '.' : '5. Total penghasilan = jumlah seluruh komponen penghasilan.'],
+    [subNames.length ? '5. Kolom ' + subNames.join(', ') + ' DIISI SENDIRI sesuai daftar gaji (tidak ada rumus) — nilainya dipakai apa adanya di slip. Total penghasilan = ' + penIdx.filter(x => !x.sub && x.c > (penIdx.find(y => y.sub) || { c: 1e9 }).c).map(x => x.h).concat(subNames).reverse().join(' + ') + '.' : '5. Total penghasilan = jumlah seluruh komponen penghasilan.'],
     ['6. Kolom "THP (opsional)" berisi rumus = total penghasilan − total potongan, dipakai untuk mencocokkan hitungan sistem.'], ['7. Kolom Unit/Email boleh dikosongkan — sistem memakai data Master Pegawai.'], ['8. BPJS & DPLK Yayasan: kolom "Tunjangan BPJS" & "DPLK Yayasan" = penghasilan; kolom "BPJS" & "DPLK Yayasan (Potongan)" = potongan — tampil paling bawah di slip. "Tambahan DPLK Pribadi" = potongan, tampil di bawah PSB.']]);
   XLSX.utils.book_append_sheet(wb, info, 'Petunjuk');
   XLSX.writeFile(wb, 'Templat_Rekap_' + j + '_' + (App.d.settings.singkatan || 'YASMA').replace(/\W+/g, '_') + '.xlsx');
